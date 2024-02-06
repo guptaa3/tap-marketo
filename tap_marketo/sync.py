@@ -33,6 +33,7 @@ def determine_replication_key(tap_stream_id):
     elif tap_stream_id == 'activity_types':
         return None
     elif tap_stream_id == 'leads':
+        singer.log_info("Set leads replication key as createdAt")
         return 'createdAt'
     elif tap_stream_id == 'lists':
         return 'updatedAt'
