@@ -165,7 +165,8 @@ def get_or_create_export_for_leads(client, state, stream, export_start, config):
     if export_id is None:
         # Corona mode is required to query by "updatedAt", otherwise a full
         # sync is required using "createdAt".
-        query_field = "updatedAt" if client.use_corona else "createdAt"
+        singer.log_info("Query Field changed to createdAt")
+        query_field = "createdAt"
         max_export_days = int(config.get('max_export_days',
                                          MAX_EXPORT_DAYS))
         if client.get_end_date():
