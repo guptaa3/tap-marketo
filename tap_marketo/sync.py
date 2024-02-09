@@ -33,7 +33,6 @@ def determine_replication_key(tap_stream_id):
     elif tap_stream_id == 'activity_types':
         return None
     elif tap_stream_id == 'leads':
-        singer.log_info("Set leads replication key as createdAt")
         return 'createdAt'
     elif tap_stream_id == 'lists':
         return 'updatedAt'
@@ -109,6 +108,7 @@ def update_state_with_export_info(state, stream, bookmark=None, export_id=None, 
         state = bookmarks.write_bookmark(state, stream["tap_stream_id"], determine_replication_key(stream['tap_stream_id']), bookmark)
 
     singer.write_state(state)
+    singer.log_info("In update_state_with_export_info, state: %s", state)
     return state
 
 
@@ -165,7 +165,7 @@ def get_or_create_export_for_leads(client, state, stream, export_start, config):
     if export_id is None:
         # Corona mode is required to query by "updatedAt", otherwise a full
         # sync is required using "createdAt".
-        singer.log_info("Query Field changed to createdAt")
+        singer.log_info("Using createdAt as the query field.")
         query_field = "createdAt"
         max_export_days = int(config.get('max_export_days',
                                          MAX_EXPORT_DAYS))
@@ -174,6 +174,7 @@ def get_or_create_export_for_leads(client, state, stream, export_start, config):
 
         export_end = get_export_end(export_start,
                                     end_days=max_export_days)
+        singer.log_info("export_end: %s", export_end)
         query = {query_field: {"startAt": export_start.isoformat(),
                                "endAt": export_end.isoformat()}}
 
@@ -189,6 +190,7 @@ def get_or_create_export_for_leads(client, state, stream, export_start, config):
             state, stream, export_id=export_id, export_end=export_end.isoformat())
     else:
         export_end = pendulum.parse(bookmarks.get_bookmark(state, "leads", "export_end"))
+        singer.log_info("Export end, if export_id is not None: %s", export_end)
 
     return export_id, export_end
 
@@ -272,9 +274,13 @@ def sync_leads(client, state, stream, config):
 
     singer.write_schema("leads", stream["schema"], stream["key_properties"], bookmark_properties=[replication_key])
     initial_bookmark = pendulum.parse(bookmarks.get_bookmark(state, "leads", replication_key))
+    singer.log_info("Initial bookmark: %s", initial_bookmark)
     export_start = pendulum.parse(bookmarks.get_bookmark(state, "leads", replication_key))
+    singer.log_info("export_start: %s", export_start)
     if client.use_corona:
+        singer.log_info("Using Corona mode")
         export_start = export_start.subtract(days=ATTRIBUTION_WINDOW_DAYS)
+        singer.log_info("Using Corona mode, adjusted export start: %s", export_start)
 
     job_started = pendulum.utcnow()
     end_date = job_started
